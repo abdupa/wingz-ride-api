@@ -107,6 +107,7 @@ All three resources support the full set: `GET` list, `POST` create, `GET` retri
 | `page`, `page_size` | Paginate. Default 20 per page, hard ceiling 100. |
 | `status` | Filter by ride status. An unknown value returns `400`, not an empty list. |
 | `rider_email` | Filter by the rider's email. Case-insensitive. |
+| `ordering` | `pickup_time` or `-pickup_time`. An unrecognised field returns `400`. |
 
 ```bash
 curl "http://127.0.0.1:8000/api/rides/?status=en-route&rider_email=rita@example.com&page_size=50" \
@@ -287,6 +288,28 @@ Emails are lowercased when saved instead. The stored value is canonical, the fil
 matches exactly, and the index does its job. Case-insensitivity costs nothing because it
 happens once on write rather than on every read.
 
+### Every ordering ends in the primary key
+
+PostgreSQL makes no promise about the relative order of rows that tie on the sort
+column, and it may answer differently for each query. Each page of a paginated list *is*
+a separate query. So when rows tie — fifty rides scheduled for the same pickup time — a
+ride can appear on page 1 *and* page 2 while another is never returned at all.
+
+The count still reads correctly. Nothing errors. You would only find it by comparing
+pages by hand.
+
+`StrictOrderingFilter` appends the primary key to every ordering, making the order total
+and reproducible. A test pages through 45 rides that share one `pickup_time` and asserts
+all 45 come back exactly once.
+
+### An unknown ordering field is a 400, not a shrug
+
+DRF's `OrderingFilter` silently discards ordering terms it does not recognise. So
+`?ordering=pickup_tim` returns `200` with unsorted data — the typo is invisible behind a
+response that looks perfectly fine.
+
+The subclass raises instead, naming the rejected field and listing what is available.
+
 ### PostgreSQL
 
 The brief names no database. PostgreSQL was chosen because requirement 3 says to assume
@@ -342,7 +365,8 @@ was followed and the brief's field name kept.
 | Table definitions | migrations | column names, order and types read from `information_schema` |
 | Admin-role restriction | `users/permissions.py`, `users/authentication.py` | `users/tests/test_authentication.py` — walks the router |
 | Pagination, filter by status and rider email | `config/pagination.py`, `rides/filters.py` | `rides/tests/test_pagination_and_filtering.py` |
-| Sorting | — | *in progress* |
+| Sort by `pickup_time` | `config/ordering.py` | `rides/tests/test_ordering.py` |
+| Sort by distance | — | *in progress* |
 | `todays_ride_events` in 2 queries + COUNT | — | *in progress* |
 | Bonus SQL report | — | *in progress* |
 

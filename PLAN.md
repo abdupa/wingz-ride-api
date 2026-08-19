@@ -62,7 +62,7 @@ Token auth first, session second. Custom `IsAdminRole`. Global deny. Token endpo
 
 ---
 
-### ⬜ 6 — Sort by pickup_time
+### ✅ 6 — Sort by pickup_time
 `OrderingFilter`, index on `pickup_time`, **`id_ride` appended to every ordering**.
 
 **Proves it:** a pagination-stability test — no row appears on two pages when timestamps tie.

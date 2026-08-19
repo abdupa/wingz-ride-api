@@ -16,6 +16,9 @@ class RideViewSet(viewsets.ModelViewSet):
 
     queryset = Ride.objects.all()
     filterset_class = RideFilter
+    # The whitelist requirement 3 asks for. Distance joins it once the
+    # annotation exists.
+    ordering_fields = ["pickup_time"]
 
     def get_serializer_class(self):
         # Reads nest rider and driver; writes take plain ids.

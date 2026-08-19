@@ -83,9 +83,9 @@ def make_rides(db, rider, driver):
     """Builds n rides in one INSERT, for pagination and query-count tests."""
 
     def _make(n, **overrides):
-        now = timezone.now()
         defaults = dict(
             status=Ride.Status.EN_ROUTE,
+            pickup_time=timezone.now(),
             id_rider=rider,
             id_driver=driver,
             pickup_latitude=14.5995,
@@ -94,8 +94,6 @@ def make_rides(db, rider, driver):
             dropoff_longitude=121.0244,
         )
         defaults.update(overrides)
-        return Ride.objects.bulk_create(
-            [Ride(pickup_time=now, **defaults) for _ in range(n)]
-        )
+        return Ride.objects.bulk_create([Ride(**defaults) for _ in range(n)])
 
     return _make
