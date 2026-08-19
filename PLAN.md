@@ -54,7 +54,7 @@ Token auth first, session second. Custom `IsAdminRole`. Global deny. Token endpo
 
 ---
 
-### ⬜ 5 — Pagination and filtering
+### ✅ 5 — Pagination and filtering
 `PageNumberPagination` (default 20, cap 100). FilterSet: status as ChoiceFilter, rider email via
 `id_rider__email` with lowercase-at-write normalisation.
 

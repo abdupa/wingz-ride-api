@@ -34,6 +34,7 @@ one in the README with the alternative and why it was rejected.
 | `status` / `role` | `TextChoices` | Buys a clean 400 on bad input. The spec's "e.g." means the list is extensible — say so |
 | Report month | Month of **pickup** | A trip is counted when it started. Depends on `TIME_ZONE` — set it explicitly |
 | Distance sort | Plain SQL first; indexed version only if `EXPLAIN` proves it | Correct before fast |
+| Auth's query cost | Query test uses `force_authenticate`; assert **3**, the brief's number | The brief measures fetching the ride list with its relations, not authenticating. Token auth adds exactly 1 query (measured). Disclose it in the README; do not switch to JWT to game a number the brief never asks about |
 
 ---
 

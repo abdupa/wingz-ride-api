@@ -98,6 +98,11 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "users.permissions.IsAdminRole",
     ],
+    "DEFAULT_PAGINATION_CLASS": "config.pagination.CappedPageNumberPagination",
+    "PAGE_SIZE": 20,
+    "DEFAULT_FILTER_BACKENDS": [
+        "django_filters.rest_framework.DjangoFilterBackend",
+    ],
 }
 
 STATIC_URL = "static/"

@@ -1,5 +1,6 @@
 from rest_framework import viewsets
 
+from .filters import RideFilter
 from .models import Ride, RideEvent
 from .serializers import RideEventSerializer, RideReadSerializer, RideWriteSerializer
 
@@ -14,6 +15,7 @@ class RideViewSet(viewsets.ModelViewSet):
     """
 
     queryset = Ride.objects.all()
+    filterset_class = RideFilter
 
     def get_serializer_class(self):
         # Reads nest rider and driver; writes take plain ids.

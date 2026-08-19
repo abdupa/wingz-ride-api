@@ -100,6 +100,19 @@ Plus `POST /api/auth/token/` to log in.
 All three resources support the full set: `GET` list, `POST` create, `GET` retrieve,
 `PUT`/`PATCH` update, `DELETE`.
 
+### Ride list query parameters
+
+| Parameter | Effect |
+|---|---|
+| `page`, `page_size` | Paginate. Default 20 per page, hard ceiling 100. |
+| `status` | Filter by ride status. An unknown value returns `400`, not an empty list. |
+| `rider_email` | Filter by the rider's email. Case-insensitive. |
+
+```bash
+curl "http://127.0.0.1:8000/api/rides/?status=en-route&rider_email=rita@example.com&page_size=50" \
+     -H "Authorization: Token 9944b09..."
+```
+
 | Situation | Response |
 |---|---|
 | No credentials | `401` with a `WWW-Authenticate: Token` header |
@@ -251,6 +264,29 @@ It authenticates any valid user, not only admins — proving who you are and bei
 in are separate questions. A rider receives a perfectly valid token that opens no doors,
 and a test asserts exactly that.
 
+### Page-number pagination, not cursor
+
+Cursor pagination is the better answer for deep paging on a very large table: it never
+runs a `COUNT`, and it does not degrade at high offsets the way `OFFSET 1000000` does.
+
+It cannot be used here. Cursor pagination requires a fixed, unique ordering key, and
+requirement 3 explicitly lets the caller choose the ordering — including a *computed*
+distance that exists only for the duration of one query. So offset paging is the right
+call precisely **because** of the sorting requirement, not in spite of it.
+
+A `page_size` parameter is accepted with a ceiling of 100, so no caller can ask for the
+whole table in one request.
+
+### Case-insensitive email matching happens at write time
+
+The obvious way to filter by rider email is `iexact`. On PostgreSQL that compiles to
+`UPPER(email) = UPPER(...)`, which **cannot use the index on email** — so a filter meant
+to be polite about capitalisation buys a full scan of the user table.
+
+Emails are lowercased when saved instead. The stored value is canonical, the filter
+matches exactly, and the index does its job. Case-insensitivity costs nothing because it
+happens once on write rather than on every read.
+
 ### PostgreSQL
 
 The brief names no database. PostgreSQL was chosen because requirement 3 says to assume
@@ -305,7 +341,8 @@ was followed and the brief's field name kept.
 | ViewSets with CRUD | `users/views.py`, `rides/views.py` | full CRUD tested on all three |
 | Table definitions | migrations | column names, order and types read from `information_schema` |
 | Admin-role restriction | `users/permissions.py`, `users/authentication.py` | `users/tests/test_authentication.py` — walks the router |
-| Pagination, filtering, sorting | — | *in progress* |
+| Pagination, filter by status and rider email | `config/pagination.py`, `rides/filters.py` | `rides/tests/test_pagination_and_filtering.py` |
+| Sorting | — | *in progress* |
 | `todays_ride_events` in 2 queries + COUNT | — | *in progress* |
 | Bonus SQL report | — | *in progress* |
 

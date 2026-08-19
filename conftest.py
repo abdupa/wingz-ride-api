@@ -76,3 +76,26 @@ def api(db, admin):
     client = APIClient()
     client.force_authenticate(user=admin)
     return client
+
+
+@pytest.fixture
+def make_rides(db, rider, driver):
+    """Builds n rides in one INSERT, for pagination and query-count tests."""
+
+    def _make(n, **overrides):
+        now = timezone.now()
+        defaults = dict(
+            status=Ride.Status.EN_ROUTE,
+            id_rider=rider,
+            id_driver=driver,
+            pickup_latitude=14.5995,
+            pickup_longitude=120.9842,
+            dropoff_latitude=14.5547,
+            dropoff_longitude=121.0244,
+        )
+        defaults.update(overrides)
+        return Ride.objects.bulk_create(
+            [Ride(pickup_time=now, **defaults) for _ in range(n)]
+        )
+
+    return _make
