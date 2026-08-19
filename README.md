@@ -533,7 +533,7 @@ succeeding wrongly. Tests cover `create_user`, `bulk_create` and `queryset.updat
 
 **Following the README from a clean clone found something the tests did not.** The
 project was cloned fresh from GitHub into an empty directory, pointed at a brand-new
-database, and every documented step run in order. All 129 tests passed and the setup
+database, and every documented step run in order. The whole suite passed and the setup
 worked — but reading a real response showed `ride_events_url` returning a relative path
 while DRF's paginator returns absolute `next`/`previous` links. A client would have to
 resolve the two differently depending on which field it read. No test failed, because
@@ -733,7 +733,7 @@ Every discrete requirement in the brief, where it is implemented, and what prove
 
 | # | Requirement | Status | Where | Proof |
 |---|---|---|---|---|
-| 2.1 | API access is restricted | ✅ | `DEFAULT_PERMISSION_CLASSES` | `test_authentication.py` |
+| 2.1 | API access is restricted | ✅ | `DEFAULT_PERMISSION_CLASSES` | `users/tests/test_authentication.py` |
 | 2.2 | Only `role='admin'` may call the endpoints | ✅ | `users/permissions.py`, `users/views.py` | test walks the router registry |
 
 ### 3 — Ride List API
@@ -744,11 +744,11 @@ Every discrete requirement in the brief, where it is implemented, and what prove
 | 3.2 | Each Ride includes its related RideEvents | ⚠️ | `todays_ride_events` + `ride_events_url` | see *The query budget* — requirement 4 forbids loading the full set, so the window is inlined and the history linked |
 | 3.3 | Includes the related rider | ✅ | `select_related` | `test_read_nests_rider_and_driver` |
 | 3.4 | Includes the related driver | ✅ | `select_related` | `test_read_nests_rider_and_driver` |
-| 3.5 | Pagination | ✅ | `config/pagination.py` | `test_pagination_and_filtering.py` |
+| 3.5 | Pagination | ✅ | `config/pagination.py` | `rides/tests/test_pagination_and_filtering.py` |
 | 3.6 | Filter by ride status | ✅ | `rides/filters.py` | unknown value returns 400 |
 | 3.7 | Filter by rider email | ✅ | `rides/filters.py` | index-backed, case-insensitive |
-| 3.8 | Sort by `pickup_time` | ✅ | `config/ordering.py` | `test_ordering.py` |
-| 3.9 | Sort by distance to a given GPS location | ✅ | `rides/distance.py` | `test_distance.py` — checked against an independent haversine |
+| 3.8 | Sort by `pickup_time` | ✅ | `config/ordering.py` | `rides/tests/test_ordering.py` |
+| 3.9 | Sort by distance to a given GPS location | ✅ | `rides/distance.py` | `rides/tests/test_distance.py` — checked against an independent haversine |
 | 3.10 | Both sorts on the same endpoint | ✅ | `ordering_fields` | one `?ordering=` parameter serves both |
 | 3.11 | Both sorts as efficient as possible on a very large table | ⚠️ | index on `pickup_time`; distance computed in SQL | distance has no usable index — see *Honest limits* |
 | 3.12 | Pagination still works when sorting is applied | ✅ | `StrictOrderingFilter` | 45 rides across 3 pages, both sorts, no duplicates |
@@ -757,7 +757,7 @@ Every discrete requirement in the brief, where it is implemented, and what prove
 
 | # | Requirement | Status | Where | Proof |
 |---|---|---|---|---|
-| 4.1 | Extra field `todays_ride_events` | ✅ | `RideReadSerializer` | `test_query_budget.py` |
+| 4.1 | Extra field `todays_ride_events` | ✅ | `RideReadSerializer` | `rides/tests/test_query_budget.py` |
 | 4.2 | Only events from the last 24 hours | ✅ | filtered `Prefetch` | 23h in, 25h out, 20h in |
 | 4.3 | SQL never loads the full RideEvent list | ✅ | `Prefetch` queryset | `WHERE created_at >= cutoff` |
 | 4.4 | Advanced Django features, fewest queries | ✅ | `Prefetch(to_attr=...)` | one query for all rides on the page |
@@ -778,7 +778,7 @@ Every discrete requirement in the brief, where it is implemented, and what prove
 |---|---|---|---|
 | S1 | Hosted in version control | ✅ | public GitHub repository |
 | S2 | Clean history, meaningful messages | ✅ | one requirement per commit, bodies explain *why* |
-| S3 | README sets up without trouble | ✅ | cloned from GitHub into an empty directory against a new database; every step run in order, 129 tests green |
+| S3 | README sets up without trouble | ✅ | cloned from GitHub into an empty directory against a new database; every step run in order, the whole suite green |
 | S4 | README records design decisions | ✅ | each with the alternative rejected |
 | S5 | README records challenges | ✅ | all real, all cost real time |
 
@@ -786,7 +786,7 @@ Every discrete requirement in the brief, where it is implemented, and what prove
 
 | # | Criterion | Status | Notes |
 |---|---|---|---|
-| E1 | Functionality — every requirement | ✅ | every row above; 129 tests |
+| E1 | Functionality — every requirement | ✅ | every row above; 130 tests |
 | E2 | Code quality — modular, readable, maintainable | ✅ | two apps, thin serializers, optimisation isolated in `get_queryset` |
 | E3 | Error handling | ✅ | `config/exceptions.py` · `rides/tests/test_error_handling.py` — 17 edge cases probed, the one 500 fixed, no path returns 5xx |
 | E4 | Performance | ✅ | three queries, held constant across data sizes |
