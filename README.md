@@ -442,18 +442,102 @@ was followed and the brief's field name kept.
 
 ## Requirement traceability
 
-| Brief | Where | Proof |
-|---|---|---|
-| Models for Ride, User, RideEvent | `users/models.py`, `rides/models.py` | `rides/tests/test_schema.py` |
-| Serializers, both directions | `users/serializers.py`, `rides/serializers.py` | `*/tests/test_crud.py` |
-| ViewSets with CRUD | `users/views.py`, `rides/views.py` | full CRUD tested on all three |
-| Table definitions | migrations | column names, order and types read from `information_schema` |
-| Admin-role restriction | `users/permissions.py`, `users/authentication.py` | `users/tests/test_authentication.py` — walks the router |
-| Pagination, filter by status and rider email | `config/pagination.py`, `rides/filters.py` | `rides/tests/test_pagination_and_filtering.py` |
-| Sort by `pickup_time` | `config/ordering.py` | `rides/tests/test_ordering.py` |
-| Sort by distance | — | *in progress* |
-| `todays_ride_events`, last 24h, 2 queries + COUNT | `rides/views.py` `get_queryset` | `rides/tests/test_query_budget.py` — asserts 3 at two data sizes |
-| Bonus SQL report | — | *in progress* |
+Every discrete requirement in the brief, where it is implemented, and what proves it.
+✅ done and tested · ⚠️ partial or interpreted · ⬜ not yet built.
+
+### Objective
+
+| # | Requirement | | Where | Proof |
+|---|---|---|---|---|
+| O1 | RESTful API with DRF, managing ride information | ✅ | `config/urls.py` | 3 resources on a router |
+
+### 1 — Use the Django REST Framework
+
+| # | Requirement | | Where | Proof |
+|---|---|---|---|---|
+| 1.1 | Model: Ride | ✅ | `rides/models.py` | `rides/tests/test_schema.py` |
+| 1.2 | Model: User | ✅ | `users/models.py` | `rides/tests/test_schema.py` |
+| 1.3 | Model: RideEvent | ✅ | `rides/models.py` | `rides/tests/test_schema.py` |
+| 1.4 | Serializer: Ride | ✅ | `rides/serializers.py` | `rides/tests/test_crud.py` |
+| 1.5 | Serializer: User | ✅ | `users/serializers.py` | `users/tests/test_crud.py` |
+| 1.6 | Serializer: RideEvent | ✅ | `rides/serializers.py` | `rides/tests/test_crud.py` |
+| 1.7 | Converts **to** JSON | ✅ | read serializers | field-order tests |
+| 1.8 | Converts **from** JSON | ✅ | write serializers | create/update tested on all three |
+| 1.9 | ViewSets handle CRUD | ✅ | `*/views.py` | full CRUD tested on all three |
+
+### 2 — Authentication
+
+| # | Requirement | | Where | Proof |
+|---|---|---|---|---|
+| 2.1 | API access is restricted | ✅ | `DEFAULT_PERMISSION_CLASSES` | `test_authentication.py` |
+| 2.2 | Only `role='admin'` may call the endpoints | ✅ | `users/permissions.py` | test walks the router registry |
+
+### 3 — Ride List API
+
+| # | Requirement | | Where | Proof |
+|---|---|---|---|---|
+| 3.1 | Endpoint returns a list of Rides | ✅ | `rides/views.py` | `GET /api/rides/` |
+| 3.2 | Each Ride includes its related RideEvents | ⚠️ | `todays_ride_events` + `ride_events_url` | see *The query budget* — requirement 4 forbids loading the full set, so the window is inlined and the history linked |
+| 3.3 | Includes the related rider | ✅ | `select_related` | `test_read_nests_rider_and_driver` |
+| 3.4 | Includes the related driver | ✅ | `select_related` | `test_read_nests_rider_and_driver` |
+| 3.5 | Pagination | ✅ | `config/pagination.py` | `test_pagination_and_filtering.py` |
+| 3.6 | Filter by ride status | ✅ | `rides/filters.py` | unknown value returns 400 |
+| 3.7 | Filter by rider email | ✅ | `rides/filters.py` | index-backed, case-insensitive |
+| 3.8 | Sort by `pickup_time` | ✅ | `config/ordering.py` | `test_ordering.py` |
+| 3.9 | Sort by distance to a given GPS location | ⬜ | — | — |
+| 3.10 | Both sorts on the same endpoint | ⬜ | — | — |
+| 3.11 | Both sorts as efficient as possible on a very large table | ⚠️ | index on `pickup_time` | distance pending |
+| 3.12 | Pagination still works when sorting is applied | ⚠️ | `StrictOrderingFilter` | proven for `pickup_time`; distance pending |
+
+### 4 — Performance
+
+| # | Requirement | | Where | Proof |
+|---|---|---|---|---|
+| 4.1 | Extra field `todays_ride_events` | ✅ | `RideReadSerializer` | `test_query_budget.py` |
+| 4.2 | Only events from the last 24 hours | ✅ | filtered `Prefetch` | 23h in, 25h out, 20h in |
+| 4.3 | SQL never loads the full RideEvent list | ✅ | `Prefetch` queryset | `WHERE created_at >= cutoff` |
+| 4.4 | Advanced Django features, fewest queries | ✅ | `Prefetch(to_attr=...)` | one query for all rides on the page |
+| 4.5 | 2 queries, or 3 counting COUNT | ✅ | `RideViewSet.get_queryset` | **asserts 3 at 5 rides and at 50** |
+
+### 5 — Table definitions
+
+| # | Requirement | | Where | Proof |
+|---|---|---|---|---|
+| 5.1 | Ride: nine fields, exactly | ✅ | `rides/migrations/0001` | read from `information_schema` |
+| 5.2 | User: six fields, exactly | ⚠️ | `users/models.py` | exact, plus `password` and `last_login` — required by 2.1, see *Design decisions* |
+| 5.3 | Ride_Event: four fields, exactly | ✅ | `rides/migrations/0001` | read from `information_schema` |
+| 5.4 | Data types | ✅ | — | `integer`, `varchar(n)`, `double precision`, `timestamptz` |
+
+### Submission
+
+| # | Requirement | | Notes |
+|---|---|---|---|
+| S1 | Hosted in version control | ✅ | public GitHub repository |
+| S2 | Clean history, meaningful messages | ✅ | one requirement per commit, bodies explain *why* |
+| S3 | README sets up without trouble | ⚠️ | written; final check is a clone into an empty directory |
+| S4 | README records design decisions | ✅ | each with the alternative rejected |
+| S5 | README records challenges | ✅ | all real, all cost real time |
+
+### Evaluation criteria
+
+| # | Criterion | | Notes |
+|---|---|---|---|
+| E1 | Functionality — every requirement | ⚠️ | 3.9, 3.10 and the bonus outstanding |
+| E2 | Code quality — modular, readable, maintainable | ✅ | two apps, thin serializers, optimisation isolated in `get_queryset` |
+| E3 | Error handling | ⚠️ | 400s and 401/403 in place; `ProtectedError` → 409 and a consistent error envelope pending |
+| E4 | Performance | ✅ | three queries, held constant across data sizes |
+
+### Bonus — SQL
+
+| # | Requirement | | |
+|---|---|---|---|
+| B1 | Raw SQL statement | ⬜ | |
+| B2 | Included in this README | ⬜ | |
+| B3 | Counts trips longer than one hour | ⬜ | |
+| B4 | Grouped by month | ⬜ | |
+| B5 | Grouped by driver | ⬜ | |
+| B6 | Output matches the sample's shape | ⬜ | |
+| B7 | Derived from the two event descriptions | ⬜ | |
 
 ---
 
