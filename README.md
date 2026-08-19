@@ -115,12 +115,18 @@ curl "http://127.0.0.1:8000/api/rides/?status=en-route&rider_email=rita@example.
      -H "Authorization: Token 9944b09..."
 ```
 
+### Error responses
+
 | Situation | Response |
 |---|---|
 | No credentials | `401` with a `WWW-Authenticate: Token` header |
 | Invalid or expired token | `401` |
 | Valid token, role is not `admin` | `403` |
-| Admin, object does not exist | `404` |
+| Object does not exist, or page past the end | `404` |
+| Method not allowed on that route | `405` |
+| Body is not JSON | `415` |
+| Malformed JSON, unknown `status`, unknown `ordering` field, bad `page_size`, impossible coordinates, missing `lat`/`lng` when ordering by distance, reference to a user or ride that does not exist, duplicate email | `400`, naming the field |
+| Deleting a user who still has rides | `409` |
 
 Rides read and write in different shapes. A `GET` nests the rider and driver in full;
 a `POST` or `PATCH` takes their ids:
@@ -334,6 +340,24 @@ admin token in order to obtain an admin token. `/api/auth/token/` opts out expli
 It authenticates any valid user, not only admins — proving who you are and being allowed
 in are separate questions. A rider receives a perfectly valid token that opens no doors,
 and a test asserts exactly that.
+
+### Errors were found by walking the API, not by guessing
+
+Error handling is one of the four evaluation criteria, so seventeen edge cases were
+probed and their actual status codes recorded. Sixteen already behaved. One did not:
+
+**Deleting a user who still has rides returned `500`.** The rider foreign key is
+`PROTECT`, deliberately, so ride history survives a user being removed — and Django
+raises `ProtectedError`, which DRF does not recognise, so it fell through as an unhandled
+server error. A custom exception handler turns it into `409 Conflict`: the request is
+perfectly well formed, it just conflicts with the current state of the data.
+
+`?page_size=abc` was also changed. DRF discards an unparseable value and quietly serves
+the default with a `200`, so the caller never learns their parameter was thrown away —
+the same failure mode as an ordering typo. It is now a `400`.
+
+A parametrised test asserts that none of ten edge-case URLs returns a `5xx`, so the
+absence of server errors is checked rather than assumed.
 
 ### Distance sorting runs in the database
 
@@ -577,7 +601,7 @@ Every discrete requirement in the brief, where it is implemented, and what prove
 |---|---|---|---|
 | E1 | Functionality — every requirement | ⚠️ | the bonus SQL outstanding |
 | E2 | Code quality — modular, readable, maintainable | ✅ | two apps, thin serializers, optimisation isolated in `get_queryset` |
-| E3 | Error handling | ⚠️ | 400s and 401/403 in place; `ProtectedError` → 409 and a consistent error envelope pending |
+| E3 | Error handling | ✅ | `config/exceptions.py` · `rides/tests/test_error_handling.py` — 17 edge cases probed, the one 500 fixed, no path returns 5xx |
 | E4 | Performance | ✅ | three queries, held constant across data sizes |
 
 ### Bonus — SQL

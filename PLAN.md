@@ -87,20 +87,7 @@ in the response. Correct and portable — no extension yet.
 
 ---
 
-### ⬜ 9 — *Optional:* PostGIS index optimisation
-Only if it earns its place. Switch to the `postgis/postgis` image, add a GiST expression index over
-`ST_SetSRID(ST_MakePoint(pickup_longitude, pickup_latitude), 4326)::geography`, KNN `<->` ordering.
-No column added to Ride. No `django.contrib.gis`.
-
-**🚧 Gate:** `EXPLAIN ANALYZE` must show the planner actually using the index. An expression index has
-to match the query expression exactly, and a subtle mismatch is silently ignored.
-
-**If it fails:** revert, keep commit 8, and explain in the README that the production answer is a stored
-geography column plus a spatial index — which the frozen-Ride rule forbids.
-
----
-
-### ⬜ 10 — Error handling pass
+### ✅ 10 — Error handling pass
 Custom exception handler, one consistent error body, every row of the error table in `CLAUDE.md`.
 
 **Why its own commit:** a full quarter of the grade, and the criterion most candidates skip.
@@ -144,3 +131,23 @@ isn't written down.
 - [ ] Bonus SQL in the README with real output
 - [ ] History reads as a clean progression, no giant commit
 - [ ] Assessment PDF **not** committed
+
+---
+
+### ⬜ 9 — *Optional, deferred to last:* PostGIS index optimisation
+
+**Moved behind 10-13.** It is the only item the brief does not ask for, and everything
+after it is required. Measured first at 200k rides: the distance sort is a parallel seq
+scan at ~51 ms against ~0.18 ms for the indexed pickup_time sort, and it grows linearly.
+The gap is real, so this is worth attempting -- but only with the required work banked.
+Only if it earns its place. Switch to the `postgis/postgis` image, add a GiST expression index over
+`ST_SetSRID(ST_MakePoint(pickup_longitude, pickup_latitude), 4326)::geography`, KNN `<->` ordering.
+No column added to Ride. No `django.contrib.gis`.
+
+**🚧 Gate:** `EXPLAIN ANALYZE` must show the planner actually using the index. An expression index has
+to match the query expression exactly, and a subtle mismatch is silently ignored.
+
+**If it fails:** revert, keep commit 8, and explain in the README that the production answer is a stored
+geography column plus a spatial index — which the frozen-Ride rule forbids.
+
+---
