@@ -1,5 +1,6 @@
 from django.contrib.auth.base_user import AbstractBaseUser
 from django.db import models
+from django.db.models.functions import Lower
 
 from .managers import UserManager
 
@@ -39,6 +40,16 @@ class User(AbstractBaseUser):
         db_table = "user"
         ordering = ["id_user"]
         indexes = [models.Index(fields=["role"], name="user_role_idx")]
+        constraints = [
+            # save() lowercases the email, but save() is not the only way a row
+            # gets written -- bulk_create, queryset.update() and raw SQL all
+            # bypass it, silently storing a value the email filter can never
+            # match. The invariant belongs where nothing can dodge it.
+            models.CheckConstraint(
+                condition=models.Q(email=Lower("email")),
+                name="user_email_is_lowercase",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.get_full_name()} <{self.email}>"

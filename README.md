@@ -288,6 +288,11 @@ Emails are lowercased when saved instead. The stored value is canonical, the fil
 matches exactly, and the index does its job. Case-insensitivity costs nothing because it
 happens once on write rather than on every read.
 
+That correctness depends on the stored value *actually* being canonical — so it is
+enforced by a database check constraint (`email = LOWER(email)`), not by `save()` alone.
+`save()` is only one way a row gets written; `bulk_create`, `queryset.update()` and raw
+SQL all bypass it. See *Challenges* below.
+
 ### Every ordering ends in the primary key
 
 PostgreSQL makes no promise about the relative order of rows that tie on the sort
@@ -341,6 +346,17 @@ the ORM is unaffected — but any raw SQL must write `"user"` in double quotes.
 
 **Docker Compose and Django share `.env`.** A `$` in a generated secret key made Compose
 warn about undefined variables. See the setup note above.
+
+**`bulk_create` silently bypassed the email normalisation.** Lowercasing lived in
+`User.save()`, and `save()` is not the only way a row gets written. A user inserted
+through `bulk_create` kept whatever case it arrived with — no error, no warning — and
+because the `rider_email` filter matches exactly, that rider's rides became unfindable.
+
+Nothing in the project did this yet, but the seed command was about to. It would have
+surfaced as "the email filter doesn't work sometimes", which is a miserable thing to
+debug. The fix was to move the invariant into a database check constraint so no write
+path can dodge it: `bulk_create` with a mixed-case address now fails loudly instead of
+succeeding wrongly. Tests cover `create_user`, `bulk_create` and `queryset.update()`.
 
 **Requirement 3 contradicts requirement 4.** Requirement 3 says each ride must include
 "its related RideEvents"; requirement 4 says the SQL "must never load the full list of
