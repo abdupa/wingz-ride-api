@@ -9,7 +9,6 @@ as a wrong answer.
 
 from django.db.models import ExpressionWrapper, F, FloatField, Value
 from django.db.models.functions import ATan2, Cos, Power, Radians, Sin, Sqrt
-from rest_framework import serializers
 
 # IUGG mean earth radius.
 EARTH_RADIUS_KM = 6371.0088
@@ -46,16 +45,3 @@ def haversine_km(latitude, longitude):
         Value(2.0 * EARTH_RADIUS_KM)
         * ATan2(Sqrt(a), Sqrt(_float(Value(1.0) - a)))
     )
-
-
-class ReferencePointSerializer(serializers.Serializer):
-    """
-    Validates the ?lat= and ?lng= pair.
-
-    A serializer rather than hand-parsing, so a missing or impossible value
-    comes back as a 400 in DRF's usual error shape instead of surfacing as a
-    500 from deep inside the ORM.
-    """
-
-    lat = serializers.FloatField(min_value=-90, max_value=90)
-    lng = serializers.FloatField(min_value=-180, max_value=180)

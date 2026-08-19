@@ -6,6 +6,18 @@ rides, the users who ride and drive them, and the events recorded against each r
 Built against the Wingz Python/Django developer assessment. The table definitions,
 primary key names and foreign key names come from that brief and are reproduced exactly.
 
+**Contents** — [Setup](#setup) · [Endpoints](#endpoints) · [The query budget](#the-query-budget) ·
+[Design decisions](#design-decisions) · [Challenges](#challenges) ·
+[Bonus — the SQL report](#bonus--the-sql-report) ·
+[Requirement traceability](#requirement-traceability) · [Tests](#tests)
+
+Short version: every requirement is traced to code and a test in the
+[traceability table](#requirement-traceability). The two most interesting parts are
+[the query budget](#the-query-budget) — 51 queries down to 3, held constant as data grows —
+and [why the report collapses events before joining](#-why-the-events-are-collapsed-before-joining).
+
+---
+
 ---
 
 ## Setup
@@ -125,7 +137,7 @@ All three resources support the full set: `GET` list, `POST` create, `GET` retri
 | `status` | Filter by ride status. An unknown value returns `400`, not an empty list. |
 | `rider_email` | Filter by the rider's email. Case-insensitive. |
 | `ordering` | `pickup_time`, `-pickup_time`, `distance`, `-distance`. An unrecognised field returns `400`. |
-| `lat`, `lng` | Reference point for distance. Required when ordering by distance; adds `distance_km` to each ride. |
+| `lat`, `lng` | Reference point for distance. Declared as filters, so they appear in the browsable API's filter form. Required when ordering by distance; adds `distance_km` to each ride. |
 
 ```bash
 curl "http://127.0.0.1:8000/api/rides/?status=en-route&rider_email=rita@example.com&page_size=50" \
@@ -665,7 +677,7 @@ and fails the comparison. The `IS NOT NULL` checks make that visible rather than
 ## Requirement traceability
 
 Every discrete requirement in the brief, where it is implemented, and what proves it.
-✅ done and tested · ⚠️ partial or interpreted · ⬜ not yet built.
+✅ done and tested · ⚠️ done, with an interpretation or a limit recorded alongside it.
 
 ### Objective
 

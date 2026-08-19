@@ -3,7 +3,7 @@
 Rules of the road: one requirement per commit, suite green at every commit, message says **why**.
 Standing decisions and traps live in `CLAUDE.md`. This file tracks progress only.
 
-Status: ⬜ not started · 🔄 in progress · ✅ done
+Status: ⬜ not started · 🔄 in progress · ✅ done · ⏭️ considered and not taken
 
 ---
 
@@ -134,9 +134,9 @@ isn't written down.
 
 ---
 
-### ⬜ 9 — *Optional, deferred to last:* PostGIS index optimisation
+### ⏭️ 9 — Considered and not taken: PostGIS index optimisation
 
-**Moved behind 10-13.** It is the only item the brief does not ask for, and everything
+**Not part of the brief.** Moved behind 10-13, then left there deliberately. It is the only item the brief does not ask for, and everything
 after it is required. Measured first at 200k rides: the distance sort is a parallel seq
 scan at ~51 ms against ~0.18 ms for the indexed pickup_time sort, and it grows linearly.
 The gap is real, so this is worth attempting -- but only with the required work banked.
