@@ -521,6 +521,15 @@ debug. The fix was to move the invariant into a database check constraint so no 
 path can dodge it: `bulk_create` with a mixed-case address now fails loudly instead of
 succeeding wrongly. Tests cover `create_user`, `bulk_create` and `queryset.update()`.
 
+**Following the README from a clean clone found something the tests did not.** The
+project was cloned fresh from GitHub into an empty directory, pointed at a brand-new
+database, and every documented step run in order. All 129 tests passed and the setup
+worked — but reading a real response showed `ride_events_url` returning a relative path
+while DRF's paginator returns absolute `next`/`previous` links. A client would have to
+resolve the two differently depending on which field it read. No test failed, because
+every test asserted the relative form it was given. Using the API caught what testing it
+did not.
+
 **Requirement 3 contradicts requirement 4.** Requirement 3 says each ride must include
 "its related RideEvents"; requirement 4 says the SQL "must never load the full list of
 RideEvents". Both cannot hold. Requirement 4 wins — it is explicit and it is the one
@@ -727,7 +736,7 @@ Every discrete requirement in the brief, where it is implemented, and what prove
 |---|---|---|---|
 | S1 | Hosted in version control | ✅ | public GitHub repository |
 | S2 | Clean history, meaningful messages | ✅ | one requirement per commit, bodies explain *why* |
-| S3 | README sets up without trouble | ⚠️ | written; final check is a clone into an empty directory |
+| S3 | README sets up without trouble | ✅ | cloned from GitHub into an empty directory against a new database; every step run in order, 129 tests green |
 | S4 | README records design decisions | ✅ | each with the alternative rejected |
 | S5 | README records challenges | ✅ | all real, all cost real time |
 

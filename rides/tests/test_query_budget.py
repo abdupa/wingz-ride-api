@@ -147,5 +147,7 @@ def test_full_history_is_linked_rather_than_inlined(api, ride):
         created_at=timezone.now() - timedelta(days=90),
     )
     url = api.get(f"/api/rides/{ride.id_ride}/").data["ride_events_url"]
-    assert url == f"/api/ride-events/?id_ride={ride.id_ride}"
+    # Absolute, matching the paginator's next/previous links.
+    assert url.startswith("http://")
+    assert url.endswith(f"/api/ride-events/?id_ride={ride.id_ride}")
     assert api.get(url).data["count"] == 1

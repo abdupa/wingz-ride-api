@@ -65,7 +65,12 @@ class RideReadSerializer(serializers.ModelSerializer):
         hold. The 24-hour window is returned as data, and the complete history
         is linked rather than inlined -- which loads nothing and costs no query.
         """
-        return f"{reverse('rideevent-list')}?id_ride={ride.id_ride}"
+        url = f"{reverse('rideevent-list')}?id_ride={ride.id_ride}"
+        # Absolute, to match the absolute next/previous links DRF's paginator
+        # emits. A payload that mixes absolute and relative URLs makes a client
+        # resolve them differently depending on which field it read.
+        request = self.context.get("request")
+        return request.build_absolute_uri(url) if request else url
 
 
 class RideWriteSerializer(serializers.ModelSerializer):

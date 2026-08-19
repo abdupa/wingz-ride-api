@@ -110,7 +110,7 @@ A management command to run it, so the README's sample output is real.
 
 ---
 
-### 🔄 13 — README
+### ✅ 13 — README
 Started early (before commit 4) rather than left to the end: it is a graded
 deliverable, and leaving it last puts all its risk in the final commit. Each
 commit now adds its own paragraph while the reasoning is fresh. All eight sections from
