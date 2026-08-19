@@ -18,8 +18,6 @@ and [why the report collapses events before joining](#-why-the-events-are-collap
 
 ---
 
----
-
 ## Setup
 
 Everything runs from a Docker-hosted PostgreSQL and a local virtualenv. No system
@@ -713,13 +711,13 @@ Every discrete requirement in the brief, where it is implemented, and what prove
 
 ### Objective
 
-| # | Requirement | | Where | Proof |
+| # | Requirement | Status | Where | Proof |
 |---|---|---|---|---|
 | O1 | RESTful API with DRF, managing ride information | ✅ | `config/urls.py` | 3 resources on a router |
 
 ### 1 — Use the Django REST Framework
 
-| # | Requirement | | Where | Proof |
+| # | Requirement | Status | Where | Proof |
 |---|---|---|---|---|
 | 1.1 | Model: Ride | ✅ | `rides/models.py` | `rides/tests/test_schema.py` |
 | 1.2 | Model: User | ✅ | `users/models.py` | `rides/tests/test_schema.py` |
@@ -733,14 +731,14 @@ Every discrete requirement in the brief, where it is implemented, and what prove
 
 ### 2 — Authentication
 
-| # | Requirement | | Where | Proof |
+| # | Requirement | Status | Where | Proof |
 |---|---|---|---|---|
 | 2.1 | API access is restricted | ✅ | `DEFAULT_PERMISSION_CLASSES` | `test_authentication.py` |
 | 2.2 | Only `role='admin'` may call the endpoints | ✅ | `users/permissions.py`, `users/views.py` | test walks the router registry |
 
 ### 3 — Ride List API
 
-| # | Requirement | | Where | Proof |
+| # | Requirement | Status | Where | Proof |
 |---|---|---|---|---|
 | 3.1 | Endpoint returns a list of Rides | ✅ | `rides/views.py` | `GET /api/rides/` |
 | 3.2 | Each Ride includes its related RideEvents | ⚠️ | `todays_ride_events` + `ride_events_url` | see *The query budget* — requirement 4 forbids loading the full set, so the window is inlined and the history linked |
@@ -757,7 +755,7 @@ Every discrete requirement in the brief, where it is implemented, and what prove
 
 ### 4 — Performance
 
-| # | Requirement | | Where | Proof |
+| # | Requirement | Status | Where | Proof |
 |---|---|---|---|---|
 | 4.1 | Extra field `todays_ride_events` | ✅ | `RideReadSerializer` | `test_query_budget.py` |
 | 4.2 | Only events from the last 24 hours | ✅ | filtered `Prefetch` | 23h in, 25h out, 20h in |
@@ -767,7 +765,7 @@ Every discrete requirement in the brief, where it is implemented, and what prove
 
 ### 5 — Table definitions
 
-| # | Requirement | | Where | Proof |
+| # | Requirement | Status | Where | Proof |
 |---|---|---|---|---|
 | 5.1 | Ride: nine fields, exactly | ✅ | `rides/migrations/0001` | read from `information_schema` |
 | 5.2 | User: six fields, exactly | ⚠️ | `users/models.py` | exact, plus `password` and `last_login` — required by 2.1, see *Design decisions* |
@@ -776,7 +774,7 @@ Every discrete requirement in the brief, where it is implemented, and what prove
 
 ### Submission
 
-| # | Requirement | | Notes |
+| # | Requirement | Status | Notes |
 |---|---|---|---|
 | S1 | Hosted in version control | ✅ | public GitHub repository |
 | S2 | Clean history, meaningful messages | ✅ | one requirement per commit, bodies explain *why* |
@@ -786,7 +784,7 @@ Every discrete requirement in the brief, where it is implemented, and what prove
 
 ### Evaluation criteria
 
-| # | Criterion | | Notes |
+| # | Criterion | Status | Notes |
 |---|---|---|---|
 | E1 | Functionality — every requirement | ✅ | every row above; 129 tests |
 | E2 | Code quality — modular, readable, maintainable | ✅ | two apps, thin serializers, optimisation isolated in `get_queryset` |
@@ -795,7 +793,7 @@ Every discrete requirement in the brief, where it is implemented, and what prove
 
 ### Bonus — SQL
 
-| # | Requirement | | |
+| # | Requirement | Status | Where |
 |---|---|---|---|
 | B1 | Raw SQL statement | ✅ | `rides/reports/trips_over_one_hour.sql` |
 | B2 | Included in this README | ✅ | *Bonus — the SQL report*, above |
