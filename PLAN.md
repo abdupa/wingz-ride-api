@@ -9,15 +9,15 @@ Status: ⬜ not started · 🔄 in progress · ✅ done
 
 ## Phase 0 — before the first commit
 
-- [ ] Create the GitHub repo, so history lands there naturally rather than as one big push
-- [ ] `.gitignore`: `.venv/`, `.env`, `__pycache__/`, `docs/Assessment.pdf`
-- [ ] Decide whether `CLAUDE.md` ships in the repo (visible to reviewers — reads as discipline)
+- [x] Create the GitHub repo, so history lands there naturally rather than as one big push
+- [x] `.gitignore`: `.venv/`, `.env`, `__pycache__/`, `docs/Assessment.pdf`
+- [x] Decide whether `CLAUDE.md` ships in the repo (visible to reviewers — reads as discipline)
 
 ---
 
 ## The commits
 
-### ⬜ 1 — Project skeleton and custom user model
+### ✅ 1 — Project skeleton and custom user model
 Django project, two apps (`users`, `rides`), settings, Docker Compose with `postgres:16`, pytest wired up.
 `User` on `AbstractBaseUser` with `id_user` PK, `db_table="user"`, email login, custom manager with
 `create_user` / `create_superuser`.
@@ -29,7 +29,7 @@ dropping the database.
 
 ---
 
-### ⬜ 2 — Ride and RideEvent models
+### ✅ 2 — Ride and RideEvent models
 Exact fields, `db_column` on every FK, distinct `related_name`s, `related_name="events"` on RideEvent,
 `default=timezone.now` on `created_at`, `Meta.ordering`, lat/lng CheckConstraints, all indexes.
 
