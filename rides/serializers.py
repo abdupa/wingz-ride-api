@@ -29,6 +29,9 @@ class RideReadSerializer(serializers.ModelSerializer):
     id_driver = UserSerializer(read_only=True)
     todays_ride_events = RideEventSerializer(many=True, read_only=True)
     ride_events_url = serializers.SerializerMethodField()
+    # Present only when the caller supplied a reference point. Named for its
+    # unit; the ordering parameter is the plainer "distance".
+    distance_km = serializers.FloatField(source="distance", read_only=True, default=None)
 
     class Meta:
         model = Ride
@@ -44,7 +47,16 @@ class RideReadSerializer(serializers.ModelSerializer):
             "pickup_time",
             "todays_ride_events",
             "ride_events_url",
+            "distance_km",
         ]
+
+    def to_representation(self, ride):
+        data = super().to_representation(ride)
+        # Without a reference point there is no distance to report, and a field
+        # that is always null except when sorting is noise on every response.
+        if data.get("distance_km") is None:
+            data.pop("distance_km", None)
+        return data
 
     def get_ride_events_url(self, ride):
         """

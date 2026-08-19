@@ -79,7 +79,7 @@ page size 20 so an N+1 would show as 23.
 
 ---
 
-### ⬜ 8 — Sort by distance (plain SQL)
+### ✅ 8 — Sort by distance (plain SQL)
 Lat/lng query params, distance annotated in the database, ordering on the annotation, `distance_km`
 in the response. Correct and portable — no extension yet.
 

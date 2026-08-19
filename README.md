@@ -107,7 +107,8 @@ All three resources support the full set: `GET` list, `POST` create, `GET` retri
 | `page`, `page_size` | Paginate. Default 20 per page, hard ceiling 100. |
 | `status` | Filter by ride status. An unknown value returns `400`, not an empty list. |
 | `rider_email` | Filter by the rider's email. Case-insensitive. |
-| `ordering` | `pickup_time` or `-pickup_time`. An unrecognised field returns `400`. |
+| `ordering` | `pickup_time`, `-pickup_time`, `distance`, `-distance`. An unrecognised field returns `400`. |
+| `lat`, `lng` | Reference point for distance. Required when ordering by distance; adds `distance_km` to each ride. |
 
 ```bash
 curl "http://127.0.0.1:8000/api/rides/?status=en-route&rider_email=rita@example.com&page_size=50" \
@@ -334,6 +335,58 @@ It authenticates any valid user, not only admins — proving who you are and bei
 in are separate questions. A rider receives a perfectly valid token that opens no doors,
 and a test asserts exactly that.
 
+### Distance sorting runs in the database
+
+```bash
+curl "http://127.0.0.1:8000/api/rides/?ordering=distance&lat=14.5826&lng=120.9787"
+```
+
+The great-circle distance is computed in SQL as part of the SELECT, and the ordering and
+`LIMIT` are applied by PostgreSQL:
+
+```sql
+SELECT ride.*, (12742.0176 * ATAN2(SQRT(POWER(SIN(...)), ...))) AS distance
+FROM "ride" ...
+ORDER BY 10 ASC, "ride"."id_ride" ASC
+LIMIT 20
+```
+
+Sorting a page in Python after fetching it would sort twenty rows out of however many
+exist — page one would hold the twenty *lowest ids*, ordered among themselves, rather
+than the twenty *nearest rides*. That is not a wrong order; it is a wrong answer. A test
+creates 44 distant rides and then one nearby, and asserts the nearby one is first on
+page one — which can only happen if the database did the sorting.
+
+**Haversine, not the spherical law of cosines.** The law of cosines is shorter, but it
+takes `acos()` of a value approaching 1 for nearby points, exactly where floating-point
+precision collapses — two rides a few metres apart can come out as zero or as noise.
+Haversine stays stable at small distances, which is the case that matters when the whole
+point is proximity.
+
+The tests check the database's answer against an independent haversine written in Python,
+so a mistake in the ORM expression cannot be validated by the same mistake in the
+assertion.
+
+### Honest limits of the distance sort
+
+Requirement 3 asks for both sorts to be "as efficiently as possible, assuming the Ride
+table is very large". Those two sorts are not equally servable:
+
+- `pickup_time` has a B-tree index. Sorting by it is an index scan.
+- **Distance cannot use an ordinary index.** It is computed from two separate columns, so
+  there is nothing to index. Every distance sort reads the whole table and sorts it.
+
+The production answer is to store a geography column and put a spatial index on it — and
+the brief explicitly forbids changing the Ride table, which is what rules it out. The
+next best thing, which the brief does allow, is a PostGIS **expression index**: a GiST
+index over `ST_MakePoint(pickup_longitude, pickup_latitude)`, giving index-accelerated
+nearest-neighbour ordering without adding a column. That is measured separately rather
+than assumed — an expression index has to match the query expression exactly, and a
+subtle mismatch is silently ignored while looking like it works.
+
+An annotation costs no extra query. Sorting by distance is still three queries, and a
+test holds it there.
+
 ### Page-number pagination, not cursor
 
 Cursor pagination is the better answer for deep paging on a very large table: it never
@@ -484,10 +537,10 @@ Every discrete requirement in the brief, where it is implemented, and what prove
 | 3.6 | Filter by ride status | ✅ | `rides/filters.py` | unknown value returns 400 |
 | 3.7 | Filter by rider email | ✅ | `rides/filters.py` | index-backed, case-insensitive |
 | 3.8 | Sort by `pickup_time` | ✅ | `config/ordering.py` | `test_ordering.py` |
-| 3.9 | Sort by distance to a given GPS location | ⬜ | — | — |
-| 3.10 | Both sorts on the same endpoint | ⬜ | — | — |
-| 3.11 | Both sorts as efficient as possible on a very large table | ⚠️ | index on `pickup_time` | distance pending |
-| 3.12 | Pagination still works when sorting is applied | ⚠️ | `StrictOrderingFilter` | proven for `pickup_time`; distance pending |
+| 3.9 | Sort by distance to a given GPS location | ✅ | `rides/distance.py` | `test_distance.py` — checked against an independent haversine |
+| 3.10 | Both sorts on the same endpoint | ✅ | `ordering_fields` | one `?ordering=` parameter serves both |
+| 3.11 | Both sorts as efficient as possible on a very large table | ⚠️ | index on `pickup_time`; distance computed in SQL | distance has no usable index — see *Honest limits* |
+| 3.12 | Pagination still works when sorting is applied | ✅ | `StrictOrderingFilter` | 45 rides across 3 pages, both sorts, no duplicates |
 
 ### 4 — Performance
 
@@ -522,7 +575,7 @@ Every discrete requirement in the brief, where it is implemented, and what prove
 
 | # | Criterion | | Notes |
 |---|---|---|---|
-| E1 | Functionality — every requirement | ⚠️ | 3.9, 3.10 and the bonus outstanding |
+| E1 | Functionality — every requirement | ⚠️ | the bonus SQL outstanding |
 | E2 | Code quality — modular, readable, maintainable | ✅ | two apps, thin serializers, optimisation isolated in `get_queryset` |
 | E3 | Error handling | ⚠️ | 400s and 401/403 in place; `ProtectedError` → 409 and a consistent error envelope pending |
 | E4 | Performance | ✅ | three queries, held constant across data sizes |
