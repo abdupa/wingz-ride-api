@@ -1,3 +1,4 @@
+from django.urls import reverse
 from rest_framework import serializers
 
 from users.serializers import UserSerializer
@@ -17,10 +18,17 @@ class RideReadSerializer(serializers.ModelSerializer):
 
     Nested serializers are read-only in DRF, which is why writes use a
     separate class rather than one serializer trying to do both jobs.
+
+    todays_ride_events is a plain list attribute placed on each Ride by the
+    ViewSet's Prefetch(to_attr=...). It is deliberately NOT a
+    SerializerMethodField calling .filter(): that returns identical JSON and
+    costs one query per ride, which no correctness test would ever catch.
     """
 
     id_rider = UserSerializer(read_only=True)
     id_driver = UserSerializer(read_only=True)
+    todays_ride_events = RideEventSerializer(many=True, read_only=True)
+    ride_events_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Ride
@@ -34,7 +42,18 @@ class RideReadSerializer(serializers.ModelSerializer):
             "dropoff_latitude",
             "dropoff_longitude",
             "pickup_time",
+            "todays_ride_events",
+            "ride_events_url",
         ]
+
+    def get_ride_events_url(self, ride):
+        """
+        Requirement 3 says each ride must include its related RideEvents;
+        requirement 4 says the SQL must never load the full list. Both cannot
+        hold. The 24-hour window is returned as data, and the complete history
+        is linked rather than inlined -- which loads nothing and costs no query.
+        """
+        return f"{reverse('rideevent-list')}?id_ride={ride.id_ride}"
 
 
 class RideWriteSerializer(serializers.ModelSerializer):

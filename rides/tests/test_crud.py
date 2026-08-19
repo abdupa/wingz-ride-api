@@ -48,8 +48,10 @@ def test_read_nests_rider_and_driver(api, ride):
 
 @pytest.mark.django_db
 def test_ride_fields_are_in_the_order_the_spec_lists_them(api, ride):
-    response = api.get(f"/api/rides/{ride.id_ride}/")
-    assert list(response.data.keys()) == SPEC_RIDE_FIELDS
+    """The spec's nine fields come first, in its order; extras follow."""
+    keys = list(api.get(f"/api/rides/{ride.id_ride}/").data.keys())
+    assert keys[: len(SPEC_RIDE_FIELDS)] == SPEC_RIDE_FIELDS
+    assert keys[len(SPEC_RIDE_FIELDS) :] == ["todays_ride_events", "ride_events_url"]
 
 
 @pytest.mark.django_db

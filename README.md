@@ -141,6 +141,75 @@ a `POST` or `PATCH` takes their ids:
 
 ---
 
+## The query budget
+
+Requirement 4 asks for the ride list, with its rider, driver and ride events, in two
+queries — three counting the paginator's `COUNT`. That is the only requirement in the
+brief with a number attached, so it is the only one that can be measured rather than
+judged.
+
+**Three queries, whether the page holds 5 rides or 50:**
+
+```sql
+[1] SELECT COUNT(*) FROM "ride"                                  -- the paginator
+[2] SELECT ride.*, rider.*, driver.* FROM "ride"                 -- select_related
+      INNER JOIN "user" ... INNER JOIN "user" ...                -- two aliased joins
+[3] SELECT ... FROM "ride_event"                                 -- Prefetch(to_attr=...)
+      WHERE id_ride IN (...) AND created_at >= ...
+```
+
+Before the optimisation this list cost `2N + 1` — **51 queries for 25 rides**, two per row
+to fetch each rider and driver.
+
+### How it is held there
+
+```python
+Prefetch(
+    "events",
+    queryset=RideEvent.objects.filter(created_at__gte=cutoff).order_by("-created_at"),
+    to_attr="todays_ride_events",
+)
+```
+
+`to_attr` is the part that matters. It puts a plain Python list on each `Ride`, so the
+serializer reads an attribute and has no queryset it could accidentally re-filter.
+
+Two ways to get this wrong, both of which return **identical JSON**:
+
+- A `SerializerMethodField` calling `.filter()` — one query per ride.
+- `Prefetch` *without* `to_attr`, then `.filter()` in the serializer — calling `.filter()`
+  on a prefetched relation discards the cache and re-queries, so you pay for the prefetch
+  *and* the N+1.
+
+No correctness test would catch either. The query-count test is the only thing that does,
+and it runs at **two data sizes ten times apart** — three queries at 5 rides and at 50.
+One data point is an observation; two is evidence the cost is constant.
+
+The cutoff is computed per request. As a module constant it would freeze at server start
+and the window would drift silently — correct on deploy day, hours stale a week later,
+never an error.
+
+### One honest note on the count
+
+The test uses `force_authenticate`, so it measures exactly what the brief measures:
+fetching the ride list with its relations. **A real request over the wire costs four** —
+token authentication looks the token up in the database. That query is not part of the
+brief's budget and is not engineered away; JWT would remove it by being stateless, at the
+cost of a dependency this project does not need.
+
+### The COUNT is the expensive one
+
+On a genuinely very large table, queries 2 and 3 touch only the twenty rows on the page.
+The `COUNT` touches every row — PostgreSQL keeps no cached row count. It is the slowest
+of the three. Removing it means cursor pagination, which requirement 3's caller-chosen
+ordering rules out.
+
+Worth knowing the floor, too: a `json_agg` subquery could inline the events and do the
+whole thing in **one** query. That was rejected — raw SQL embedded in a queryset, harder
+to read and change, for a target the brief already sets at two.
+
+---
+
 ## Design decisions
 
 ### The User table has no password, but the brief demands authentication
@@ -383,7 +452,7 @@ was followed and the brief's field name kept.
 | Pagination, filter by status and rider email | `config/pagination.py`, `rides/filters.py` | `rides/tests/test_pagination_and_filtering.py` |
 | Sort by `pickup_time` | `config/ordering.py` | `rides/tests/test_ordering.py` |
 | Sort by distance | — | *in progress* |
-| `todays_ride_events` in 2 queries + COUNT | — | *in progress* |
+| `todays_ride_events`, last 24h, 2 queries + COUNT | `rides/views.py` `get_queryset` | `rides/tests/test_query_budget.py` — asserts 3 at two data sizes |
 | Bonus SQL report | — | *in progress* |
 
 ---

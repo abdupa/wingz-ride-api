@@ -69,7 +69,7 @@ Token auth first, session second. Custom `IsAdminRole`. Global deny. Token endpo
 
 ---
 
-### ⬜ 7 — `todays_ride_events` and the query budget ⭐
+### ✅ 7 — `todays_ride_events` and the query budget ⭐
 The headline requirement. `select_related` + `Prefetch(..., to_attr=...)`, cutoff computed per request.
 
 **Watch:** traps 4, 5, 6.
