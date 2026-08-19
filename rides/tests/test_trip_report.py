@@ -172,3 +172,100 @@ def test_two_drivers_with_the_same_initial_stay_separate(trip, driver):
     assert len(rows) == 2
     assert [row[1] for row in rows] == ["Chris H", "Chris H"]
     assert [row[2] for row in rows] == [1, 1]
+
+
+# --- the brief's own sample report ------------------------------------------
+
+# Reproduced verbatim from the assessment PDF.
+SAMPLE_REPORT = [
+    ("2024-01", "Chris H", 4),
+    ("2024-01", "Howard Y", 5),
+    ("2024-01", "Randy W", 2),
+    ("2024-02", "Chris H", 7),
+    ("2024-02", "Howard Y", 5),
+    ("2024-03", "Chris H", 2),
+    ("2024-03", "Howard Y", 2),
+    ("2024-03", "Randy W", 11),
+    ("2024-04", "Howard Y", 7),
+    ("2024-04", "Randy W", 3),
+]
+
+SAMPLE_DRIVERS = {
+    "Chris H": ("Chris", "Hernandez"),
+    "Howard Y": ("Howard", "Yamamoto"),
+    "Randy W": ("Randy", "Watanabe"),
+}
+
+
+@pytest.fixture
+def sample_drivers(db):
+    return {
+        label: User.objects.create_user(
+            email=f"{first}.{last}@example.com".lower(),
+            password="test-pass-123",
+            role=User.Role.DRIVER,
+            first_name=first,
+            last_name=last,
+            phone_number="+639170000000",
+        )
+        for label, (first, last) in SAMPLE_DRIVERS.items()
+    }
+
+
+def build_trips(rider, driver, month, count, minutes):
+    """`count` trips of `minutes` each, mid-month so no boundary is involved."""
+    from datetime import datetime, timezone as dt_timezone
+
+    year, mon = (int(part) for part in month.split("-"))
+    start = datetime(year, mon, 15, 12, 0, tzinfo=dt_timezone.utc)
+
+    rides = Ride.objects.bulk_create(
+        [
+            Ride(
+                status=Ride.Status.DROPOFF,
+                id_rider=rider,
+                id_driver=driver,
+                pickup_latitude=14.5, pickup_longitude=120.9,
+                dropoff_latitude=14.6, dropoff_longitude=121.0,
+                pickup_time=start + timedelta(minutes=i),
+            )
+            for i in range(count)
+        ]
+    )
+    RideEvent.objects.bulk_create(
+        [
+            event
+            for i, ride in enumerate(rides)
+            for event in (
+                RideEvent(id_ride=ride, description=PICKUP,
+                          created_at=start + timedelta(minutes=i)),
+                RideEvent(id_ride=ride, description=DROPOFF,
+                          created_at=start + timedelta(minutes=i + minutes)),
+            )
+        ]
+    )
+
+
+@pytest.mark.django_db
+def test_it_reproduces_the_briefs_sample_report(rider, sample_drivers):
+    """
+    Builds exactly the dataset the assessment's sample report describes, then
+    asserts the query returns exactly that table -- same months, same driver
+    labels, same counts, same order.
+
+    Noise is added on purpose in the two cells the sample leaves blank. The
+    brief shows no Randy W in February and no Chris H in April, so those
+    drivers get short trips in those months. If the query were counting all
+    trips rather than only those over an hour, two extra rows would appear and
+    the comparison would fail.
+    """
+    for month, label, count in SAMPLE_REPORT:
+        build_trips(rider, sample_drivers[label], month, count, minutes=90)
+
+    # The blanks in the sample, populated with trips that must not qualify.
+    build_trips(rider, sample_drivers["Randy W"], "2024-02", 6, minutes=45)
+    build_trips(rider, sample_drivers["Chris H"], "2024-04", 9, minutes=59)
+    # And one that is exactly an hour, which "more than 1 hour" excludes.
+    build_trips(rider, sample_drivers["Howard Y"], "2024-02", 3, minutes=60)
+
+    assert run_report() == SAMPLE_REPORT

@@ -628,6 +628,38 @@ Month    Driver    Count of Trips > 1 hr
 2026-08  Randy W   12
 ```
 
+### It reproduces the brief's own sample report
+
+The strongest check is not against numbers I chose. `test_it_reproduces_the_briefs_sample_report`
+builds exactly the dataset the assessment's sample describes — the same three drivers, the
+same four months, the same counts — and asserts the query returns that table verbatim,
+in the same order:
+
+```
+Month    Driver    Count of Trips > 1 hr        Month    Driver    Count of Trips > 1 hr
+-------  --------  ---------------------        -------  --------  ---------------------
+2024-01  Chris H   4                            2024-01  Chris H   4
+2024-01  Howard Y  5                            2024-01  Howard Y  5
+2024-01  Randy W   2                            2024-01  Randy W   2
+2024-02  Chris H   7                            2024-02  Chris H   7
+2024-02  Howard Y  5                            2024-02  Howard Y  5
+2024-03  Chris H   2                            2024-03  Chris H   2
+2024-03  Howard Y  2                            2024-03  Howard Y  2
+2024-03  Randy W   11                           2024-03  Randy W   11
+2024-04  Howard Y  7                            2024-04  Howard Y  7
+2024-04  Randy W   3                            2024-04  Randy W   3
+   the brief's sample                                  what the query returns
+```
+
+**The blanks are load-bearing.** The sample shows no Randy W in February and no Chris H in
+April, so the test gives those drivers trips in those months — short ones, 45 and 59
+minutes. It also gives Howard Y three trips of exactly 60 minutes in February. If the
+query counted all trips rather than only those over an hour, or if "more than" were read
+as "at least", extra rows and inflated counts would appear and the comparison would fail.
+
+Matching the counts proves the query counts correctly. Matching the *gaps* proves it
+excludes correctly.
+
 ### 🔴 Why the events are collapsed before joining
 
 The natural way to write this is to join `ride_event` twice — once for the pickup, once
