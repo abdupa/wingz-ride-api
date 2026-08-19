@@ -704,7 +704,7 @@ Every discrete requirement in the brief, where it is implemented, and what prove
 | # | Requirement | | Where | Proof |
 |---|---|---|---|---|
 | 2.1 | API access is restricted | ✅ | `DEFAULT_PERMISSION_CLASSES` | `test_authentication.py` |
-| 2.2 | Only `role='admin'` may call the endpoints | ✅ | `users/permissions.py` | test walks the router registry |
+| 2.2 | Only `role='admin'` may call the endpoints | ✅ | `users/permissions.py`, `users/views.py` | test walks the router registry |
 
 ### 3 — Ride List API
 

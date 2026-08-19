@@ -1,3 +1,4 @@
+from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
@@ -53,3 +54,30 @@ class UserSerializer(serializers.ModelSerializer):
             instance.set_password(password)
         instance.save()
         return instance
+
+
+class EmailAuthTokenSerializer(serializers.Serializer):
+    """
+    DRF's stock token serializer asks for a field called "username". This one
+    asks for an email, because that is what USERNAME_FIELD is here and a
+    parameter named "username" holding an email address is a small lie the
+    README would then have to explain.
+    """
+
+    email = serializers.EmailField()
+    password = serializers.CharField(
+        style={"input_type": "password"}, trim_whitespace=False, write_only=True
+    )
+
+    def validate(self, attrs):
+        user = authenticate(
+            request=self.context.get("request"),
+            username=attrs["email"].lower(),
+            password=attrs["password"],
+        )
+        if not user:
+            raise serializers.ValidationError(
+                {"detail": "Unable to log in with the credentials provided."}
+            )
+        attrs["user"] = user
+        return attrs

@@ -9,9 +9,8 @@ assessment's User table does not define.
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
-from users.authentication import ObtainAuthTokenView
 from rides.views import RideEventViewSet, RideViewSet
-from users.views import UserViewSet
+from users.views import ObtainAuthTokenView, UserViewSet
 
 router = DefaultRouter()
 router.register("users", UserViewSet)
