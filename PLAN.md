@@ -39,7 +39,7 @@ Exact fields, `db_column` on every FK, distinct `related_name`s, `related_name="
 
 ---
 
-### ⬜ 3 — Serializers and three CRUD ViewSets
+### ✅ 3 — Serializers and three CRUD ViewSets
 Read/write serializer split, router, `/api/` prefix. Full CRUD on all three models.
 
 **Proves it:** CRUD tests for each model — the requirement most often left half-finished.

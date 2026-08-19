@@ -41,3 +41,16 @@ def ride(db, rider, driver):
         dropoff_longitude=121.0244,
         pickup_time=timezone.now(),
     )
+
+
+@pytest.fixture
+def api(db):
+    """
+    API client used by every endpoint test.
+
+    Authentication is added to this one fixture once the admin-role gate
+    exists, so the endpoint tests do not each need to know about it.
+    """
+    from rest_framework.test import APIClient
+
+    return APIClient()

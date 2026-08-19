@@ -1,10 +1,22 @@
 """
 Root URL configuration.
 
-The API router is registered here once the ViewSets exist. There is no
-django.contrib.admin route: the admin site is not installed, since this is a
-JSON API and the admin requires the is_staff/is_superuser fields that the
+There is no django.contrib.admin route: the admin site is not installed, since
+this is a JSON API and the admin requires the is_staff/is_superuser fields the
 assessment's User table does not define.
 """
 
-urlpatterns = []
+from django.urls import include, path
+from rest_framework.routers import DefaultRouter
+
+from rides.views import RideEventViewSet, RideViewSet
+from users.views import UserViewSet
+
+router = DefaultRouter()
+router.register("users", UserViewSet)
+router.register("rides", RideViewSet)
+router.register("ride-events", RideEventViewSet)
+
+urlpatterns = [
+    path("api/", include(router.urls)),
+]
