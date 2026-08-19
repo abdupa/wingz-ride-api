@@ -102,7 +102,7 @@ Deliberate edge cases: events at 23h and 25h old, tied pickup times, a ride with
 
 ---
 
-### ⬜ 12 — Bonus SQL report
+### ✅ 12 — Bonus SQL report
 `FILTER` aggregates, group by `d.id_user`, `LEFT(last_name, 1)`, `> INTERVAL '1 hour'`, quoted `"user"`.
 A management command to run it, so the README's sample output is real.
 

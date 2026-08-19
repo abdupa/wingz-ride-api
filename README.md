@@ -534,6 +534,125 @@ was followed and the brief's field name kept.
 
 ---
 
+## Bonus — the SQL report
+
+Count of trips whose pickup-to-dropoff duration exceeded one hour, grouped by month and
+driver. The query lives in [`rides/reports/trips_over_one_hour.sql`](rides/reports/trips_over_one_hour.sql)
+so the SQL printed here is the SQL that runs, and cannot drift from it.
+
+```bash
+python manage.py seed --clear
+python manage.py trip_report
+```
+
+```sql
+-- Count of trips whose pickup-to-dropoff duration exceeded one hour,
+-- grouped by month and driver.
+--
+-- The events are collapsed per ride before joining, rather than joining
+-- ride_event twice -- once for the pickup and once for the dropoff. That
+-- second approach reads more naturally and is wrong: if a ride has two pickup
+-- events the join multiplies its rows and the trip is counted twice. Nothing
+-- errors; the totals simply come out too high and look entirely plausible.
+--
+-- "user" is quoted because it is a reserved word in PostgreSQL.
+
+WITH trip AS (
+    SELECT
+        e.id_ride,
+        MIN(e.created_at) FILTER (WHERE e.description = 'Status changed to pickup')
+            AS picked_up_at,
+        MAX(e.created_at) FILTER (WHERE e.description = 'Status changed to dropoff')
+            AS dropped_off_at
+    FROM ride_event e
+    WHERE e.description IN ('Status changed to pickup', 'Status changed to dropoff')
+    GROUP BY e.id_ride
+)
+SELECT
+    to_char(t.picked_up_at, 'YYYY-MM')                    AS "Month",
+    d.first_name || ' ' || LEFT(d.last_name, 1)           AS "Driver",
+    COUNT(*)                                              AS "Count of Trips > 1 hr"
+FROM trip t
+JOIN ride   r ON r.id_ride = t.id_ride
+JOIN "user" d ON d.id_user = r.id_driver
+WHERE t.picked_up_at   IS NOT NULL          -- a trip that never started
+  AND t.dropped_off_at IS NOT NULL          -- or is still running
+  AND t.dropped_off_at - t.picked_up_at > INTERVAL '1 hour'   -- strictly more
+-- Grouped by the driver's id, not by the rendered name: two drivers called
+-- Chris Hernandez and Chris Huang both display as "Chris H" and would
+-- otherwise be silently merged into one row.
+GROUP BY 1, d.id_user
+ORDER BY 1, 2;
+```
+
+### Output against the seeded data
+
+```
+Month    Driver    Count of Trips > 1 hr
+-------  --------  ---------------------
+2026-04  Chris H   4
+2026-04  Howard Y  5
+2026-04  Randy W   3
+2026-05  Chris H   10
+2026-05  Howard Y  17
+2026-05  Randy W   9
+2026-06  Chris H   9
+2026-06  Howard Y  11
+2026-06  Randy W   7
+2026-07  Chris H   13
+2026-07  Howard Y  12
+2026-07  Randy W   11
+2026-08  Chris H   11
+2026-08  Howard Y  5
+2026-08  Randy W   12
+```
+
+### 🔴 Why the events are collapsed before joining
+
+The natural way to write this is to join `ride_event` twice — once for the pickup, once
+for the dropoff:
+
+```sql
+JOIN ride_event p  ON p.id_ride = r.id_ride AND p.description = 'Status changed to pickup'
+JOIN ride_event dr ON dr.id_ride = r.id_ride AND dr.description = 'Status changed to dropoff'
+```
+
+**That is wrong, and it fails quietly.** If a ride has two pickup events — a retry, a
+correction, a bad dispatch — the join matches both against the dropoff and counts the trip
+twice. Nothing errors. The totals are simply too high, and entirely plausible.
+
+Collapsing the events per ride first with `MIN(...) FILTER (WHERE ...)` gives one row per
+ride, so the count is right whatever the event table contains.
+
+A test proves it rather than asserting it. One ride, ninety minutes, with a second pickup
+recorded a minute in:
+
+```python
+assert naive_report()[0][2] == 2      # the double join — wrong, and plausible
+assert run_report()[0][2] == 1        # collapsed first — right
+```
+
+The seed command plants exactly that ride on purpose. **Without it the bug is invisible**:
+with one pickup per ride, the wrong query and the right one return identical numbers.
+
+### Three other details the sample output specifies
+
+**`Chris H` is a last initial**, not a surname — `first_name || ' ' || LEFT(last_name, 1)`.
+
+**Grouped by `d.id_user`, not by the rendered name.** Chris Hernandez and Chris Huang both
+display as "Chris H"; grouping by the string would merge two drivers into one row. A test
+creates both and asserts two rows.
+
+**"More than 1 hour" is strict** — `> INTERVAL '1 hour'`. A trip of exactly sixty minutes
+does not count, and a test pins both sides of that boundary.
+
+Trips still running are excluded naturally: with no dropoff event the duration is `NULL`
+and fails the comparison. The `IS NOT NULL` checks make that visible rather than accidental.
+
+`"user"` is double-quoted throughout — it is a reserved word in PostgreSQL.
+
+---
+
 ## Requirement traceability
 
 Every discrete requirement in the brief, where it is implemented, and what proves it.
@@ -616,7 +735,7 @@ Every discrete requirement in the brief, where it is implemented, and what prove
 
 | # | Criterion | | Notes |
 |---|---|---|---|
-| E1 | Functionality — every requirement | ⚠️ | the bonus SQL outstanding |
+| E1 | Functionality — every requirement | ✅ | every row above; 129 tests |
 | E2 | Code quality — modular, readable, maintainable | ✅ | two apps, thin serializers, optimisation isolated in `get_queryset` |
 | E3 | Error handling | ✅ | `config/exceptions.py` · `rides/tests/test_error_handling.py` — 17 edge cases probed, the one 500 fixed, no path returns 5xx |
 | E4 | Performance | ✅ | three queries, held constant across data sizes |
@@ -625,13 +744,13 @@ Every discrete requirement in the brief, where it is implemented, and what prove
 
 | # | Requirement | | |
 |---|---|---|---|
-| B1 | Raw SQL statement | ⬜ | |
-| B2 | Included in this README | ⬜ | |
-| B3 | Counts trips longer than one hour | ⬜ | |
-| B4 | Grouped by month | ⬜ | |
-| B5 | Grouped by driver | ⬜ | |
-| B6 | Output matches the sample's shape | ⬜ | |
-| B7 | Derived from the two event descriptions | ⬜ | |
+| B1 | Raw SQL statement | ✅ | `rides/reports/trips_over_one_hour.sql` |
+| B2 | Included in this README | ✅ | *Bonus — the SQL report*, above |
+| B3 | Counts trips longer than one hour | ✅ | strict `>`; 60 min excluded, 61 min counted |
+| B4 | Grouped by month | ✅ | `to_char(picked_up_at, 'YYYY-MM')` |
+| B5 | Grouped by driver | ✅ | by `id_user`, so same-initial drivers stay separate |
+| B6 | Output matches the sample's shape | ✅ | Month · Driver · Count, `Chris H` style |
+| B7 | Derived from the two event descriptions | ✅ | `FILTER (WHERE description = ...)` |
 
 ---
 
