@@ -59,7 +59,24 @@ python manage.py createsuperuser
 creates the account with `role='admin'`. There is no `is_superuser` field — see
 *Design decisions* below.
 
-**5. Run**
+**5. Seed some data (optional but recommended)**
+
+```bash
+python manage.py seed --clear
+```
+
+Creates an admin, three drivers, eight riders and around 300 rides with four months of
+pickup and dropoff events. It is deterministic — the same `--seed` produces the same
+database every time, so a number quoted here can be reproduced rather than described.
+
+It also plants three shapes that uniform random data would never produce, each one the
+thing a specific requirement needs to be provable: a ride with events either side of the
+24-hour boundary, five rides sharing one `pickup_time`, and **one ride with two pickup
+events** — without which the bonus report's inflation bug is invisible.
+
+Log in as `admin@wingz.test` / `wingz-admin-password`.
+
+**6. Run**
 
 ```bash
 python manage.py runserver
@@ -68,7 +85,7 @@ pytest
 
 The API is at `http://127.0.0.1:8000/api/`.
 
-**6. Get a token**
+**7. Get a token**
 
 Every endpoint requires an authenticated user with `role='admin'`.
 

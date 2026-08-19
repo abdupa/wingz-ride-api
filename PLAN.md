@@ -94,7 +94,7 @@ Custom exception handler, one consistent error body, every row of the error tabl
 
 ---
 
-### ⬜ 11 — `seed` management command
+### ✅ 11 — `seed` management command
 Users across roles, rides, and events spanning several months so the report has something to report.
 Deliberate edge cases: events at 23h and 25h old, tied pickup times, a ride with two pickup events.
 
