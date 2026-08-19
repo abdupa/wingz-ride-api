@@ -6,6 +6,18 @@ from users.models import User
 
 
 @pytest.fixture
+def admin(db):
+    return User.objects.create_user(
+        email="ada.admin@example.com",
+        password="test-pass-123",
+        role=User.Role.ADMIN,
+        first_name="Ada",
+        last_name="Admin",
+        phone_number="+639170000000",
+    )
+
+
+@pytest.fixture
 def rider(db):
     return User.objects.create_user(
         email="rita.rider@example.com",
@@ -44,13 +56,23 @@ def ride(db, rider, driver):
 
 
 @pytest.fixture
-def api(db):
-    """
-    API client used by every endpoint test.
-
-    Authentication is added to this one fixture once the admin-role gate
-    exists, so the endpoint tests do not each need to know about it.
-    """
+def anonymous_api(db):
+    """A client carrying no credentials at all."""
     from rest_framework.test import APIClient
 
     return APIClient()
+
+
+@pytest.fixture
+def api(db, admin):
+    """
+    The client every endpoint test uses: signed in as an admin.
+
+    Authentication lives in this one fixture so the endpoint tests stay about
+    the endpoints rather than each re-stating how to log in.
+    """
+    from rest_framework.test import APIClient
+
+    client = APIClient()
+    client.force_authenticate(user=admin)
+    return client

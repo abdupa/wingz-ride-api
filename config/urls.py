@@ -9,6 +9,7 @@ assessment's User table does not define.
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
+from users.authentication import ObtainAuthTokenView
 from rides.views import RideEventViewSet, RideViewSet
 from users.views import UserViewSet
 
@@ -18,5 +19,6 @@ router.register("rides", RideViewSet)
 router.register("ride-events", RideEventViewSet)
 
 urlpatterns = [
+    path("api/auth/token/", ObtainAuthTokenView.as_view(), name="obtain-token"),
     path("api/", include(router.urls)),
 ]

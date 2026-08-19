@@ -46,7 +46,7 @@ Read/write serializer split, router, `/api/` prefix. Full CRUD on all three mode
 
 ---
 
-### ⬜ 4 — Authentication and the admin-role gate
+### ✅ 4 — Authentication and the admin-role gate
 Token auth first, session second. Custom `IsAdminRole`. Global deny. Token endpoint `AllowAny`.
 `ProtectedError` → 409.
 

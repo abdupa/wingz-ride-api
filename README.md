@@ -68,6 +68,23 @@ pytest
 
 The API is at `http://127.0.0.1:8000/api/`.
 
+**6. Get a token**
+
+Every endpoint requires an authenticated user with `role='admin'`.
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/auth/token/ \
+     -H "Content-Type: application/json" \
+     -d '{"email": "you@example.com", "password": "your-password"}'
+# {"token":"9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b"}
+```
+
+Then send it on every request:
+
+```bash
+curl http://127.0.0.1:8000/api/rides/ -H "Authorization: Token 9944b09..."
+```
+
 ---
 
 ## Endpoints
@@ -78,8 +95,17 @@ The API is at `http://127.0.0.1:8000/api/`.
 | Rides | `/api/rides/` · `/api/rides/{id_ride}/` |
 | Ride events | `/api/ride-events/` · `/api/ride-events/{id_ride_event}/` |
 
-All three support the full set: `GET` list, `POST` create, `GET` retrieve,
+Plus `POST /api/auth/token/` to log in.
+
+All three resources support the full set: `GET` list, `POST` create, `GET` retrieve,
 `PUT`/`PATCH` update, `DELETE`.
+
+| Situation | Response |
+|---|---|
+| No credentials | `401` with a `WWW-Authenticate: Token` header |
+| Invalid or expired token | `401` |
+| Valid token, role is not `admin` | `403` |
+| Admin, object does not exist | `404` |
 
 Rides read and write in different shapes. A `GET` nests the rider and driver in full;
 a `POST` or `PATCH` takes their ids:
@@ -187,6 +213,44 @@ DRF, and a caller creating a ride should send `id_rider: 7` rather than a whole 
 object. One serializer cannot do both cleanly, so `get_serializer_class()` picks by
 action.
 
+### Token authentication, not JWT
+
+DRF's built-in `TokenAuthentication` needs no extra dependency, works in a one-line
+`curl`, and reduces the README to a single command. JWT is the better answer at scale —
+stateless, no database lookup per request, refresh semantics — and would be the choice
+for a real deployment. It buys nothing on an assessment and costs a dependency.
+
+Session authentication is enabled alongside it so DRF's browsable API is usable in a
+browser.
+
+**The order in settings matters.** DRF decides between `401` and `403` for an
+unauthenticated request based on the *first* authentication class. Token auth sends a
+`WWW-Authenticate` header and produces `401`; session auth sends none and produces
+`403`. Listing session first would make every anonymous request return the wrong status
+code. A test pins the ordering.
+
+### A hand-written permission, not DRF's `IsAdminUser`
+
+DRF ships a permission called `IsAdminUser`. It checks `user.is_staff` — a Django
+admin-site concept, and a field this project's User model does not have. The names are
+close enough to be dangerous; reaching for it would have silently locked everybody out.
+
+`IsAdminRole` checks what the brief actually asks for: the user is authenticated and
+`role == 'admin'`.
+
+### Closed by default, with one deliberate hole
+
+The permission is set in `DEFAULT_PERMISSION_CLASSES`, so every endpoint is protected
+without anyone having to remember to protect it. A ViewSet added next year is closed
+the moment it is registered.
+
+That makes the login endpoint a problem: it is an endpoint too, so you would need an
+admin token in order to obtain an admin token. `/api/auth/token/` opts out explicitly.
+
+It authenticates any valid user, not only admins — proving who you are and being allowed
+in are separate questions. A rider receives a perfectly valid token that opens no doors,
+and a test asserts exactly that.
+
 ### PostgreSQL
 
 The brief names no database. PostgreSQL was chosen because requirement 3 says to assume
@@ -240,7 +304,7 @@ was followed and the brief's field name kept.
 | Serializers, both directions | `users/serializers.py`, `rides/serializers.py` | `*/tests/test_crud.py` |
 | ViewSets with CRUD | `users/views.py`, `rides/views.py` | full CRUD tested on all three |
 | Table definitions | migrations | column names, order and types read from `information_schema` |
-| Admin-role restriction | — | *in progress* |
+| Admin-role restriction | `users/permissions.py`, `users/authentication.py` | `users/tests/test_authentication.py` — walks the router |
 | Pagination, filtering, sorting | — | *in progress* |
 | `todays_ride_events` in 2 queries + COUNT | — | *in progress* |
 | Bonus SQL report | — | *in progress* |

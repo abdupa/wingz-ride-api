@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.staticfiles",
     "rest_framework",
+    "rest_framework.authtoken",
     "django_filters",
     "users",
     "rides",
@@ -81,6 +82,23 @@ LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
+
+REST_FRAMEWORK = {
+    # Token first, and the order matters. DRF picks 401 vs 403 for an
+    # unauthenticated request from the FIRST authentication class: token auth
+    # sends a WWW-Authenticate header and yields 401, session auth sends none
+    # and yields 403. Listing session first would make every anonymous request
+    # return the wrong status code.
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.TokenAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
+    ],
+    # Closed by default, so a ViewSet added later cannot be left open by
+    # forgetting to protect it. The token endpoint opts out explicitly.
+    "DEFAULT_PERMISSION_CLASSES": [
+        "users.permissions.IsAdminRole",
+    ],
+}
 
 STATIC_URL = "static/"
 
