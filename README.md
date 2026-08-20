@@ -801,7 +801,7 @@ Every discrete requirement in the brief, where it is implemented, and what prove
 | 3.8 | Sort by `pickup_time` | ✅ | `config/ordering.py` | `rides/tests/test_ordering.py` |
 | 3.9 | Sort by distance to a given GPS location | ✅ | `rides/distance.py` | `rides/tests/test_distance.py` — checked against an independent haversine |
 | 3.10 | Both sorts on the same endpoint | ✅ | `ordering_fields` | one `?ordering=` parameter serves both |
-| 3.11 | Both sorts as efficient as possible on a very large table | ⚠️ | `pickup_time` index-only scan; distance computed in SQL | a PostGIS index was built and measured — 48× faster, but only without the tiebreaker pagination correctness needs. See *Honest limits* |
+| 3.11 | Both sorts as efficient as possible on a very large table | ⚠️ | `pickup_time` read straight off its composite index; distance computed in SQL | a PostGIS index was built and measured — 48× faster, but only without the tiebreaker pagination correctness needs. See *Honest limits* |
 | 3.12 | Pagination still works when sorting is applied | ✅ | `StrictOrderingFilter` | 45 rides across 3 pages, both sorts, no duplicates |
 
 ### 4 — Performance
