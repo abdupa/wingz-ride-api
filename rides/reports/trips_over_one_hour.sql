@@ -21,7 +21,12 @@ WITH trip AS (
     GROUP BY e.id_ride
 )
 SELECT
-    to_char(t.picked_up_at, 'YYYY-MM')                    AS "Month",
+    -- AT TIME ZONE 'UTC' is not decoration. created_at is a timestamptz,
+    -- and to_char formats it in whatever timezone the session happens to
+    -- be set to. A trip picked up at 23:30 on the last day of a month
+    -- would land in the next month for a session eight hours ahead. The
+    -- report must not depend on who is running it.
+    to_char(t.picked_up_at AT TIME ZONE 'UTC', 'YYYY-MM')  AS "Month",
     d.first_name || ' ' || LEFT(d.last_name, 1)           AS "Driver",
     COUNT(*)                                              AS "Count of Trips > 1 hr"
 FROM trip t

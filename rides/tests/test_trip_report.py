@@ -269,3 +269,27 @@ def test_it_reproduces_the_briefs_sample_report(rider, sample_drivers):
     build_trips(rider, sample_drivers["Howard Y"], "2024-02", 3, minutes=60)
 
     assert run_report() == SAMPLE_REPORT
+
+
+@pytest.mark.django_db
+def test_the_month_does_not_move_with_the_session_timezone(trip):
+    """
+    created_at is a timestamptz, so to_char formats it in whatever timezone the
+    session is set to. This trip starts at 23:30 UTC on the last day of January
+    -- which is already 07:30 on 1 February for a session eight hours ahead.
+
+    Without AT TIME ZONE 'UTC' the same data reports a different month
+    depending on who runs the query.
+    """
+    from datetime import datetime, timezone as dt_timezone
+
+    late_january = datetime(2024, 1, 31, 23, 30, tzinfo=dt_timezone.utc)
+    trip(minutes=90, when=late_january)
+
+    with connection.cursor() as cursor:
+        cursor.execute("SET LOCAL TIME ZONE 'Asia/Manila'")  # UTC+8
+        assert run_report()[0][0] == "2024-01"
+
+    with connection.cursor() as cursor:
+        cursor.execute("SET LOCAL TIME ZONE 'America/Los_Angeles'")  # UTC-8
+        assert run_report()[0][0] == "2024-01"

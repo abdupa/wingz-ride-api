@@ -588,7 +588,12 @@ WITH trip AS (
     GROUP BY e.id_ride
 )
 SELECT
-    to_char(t.picked_up_at, 'YYYY-MM')                    AS "Month",
+    -- AT TIME ZONE 'UTC' is not decoration. created_at is a timestamptz,
+    -- and to_char formats it in whatever timezone the session happens to
+    -- be set to. A trip picked up at 23:30 on the last day of a month
+    -- would land in the next month for a session eight hours ahead. The
+    -- report must not depend on who is running it.
+    to_char(t.picked_up_at AT TIME ZONE 'UTC', 'YYYY-MM')  AS "Month",
     d.first_name || ' ' || LEFT(d.last_name, 1)           AS "Driver",
     COUNT(*)                                              AS "Count of Trips > 1 hr"
 FROM trip t
@@ -693,6 +698,12 @@ with one pickup per ride, the wrong query and the right one return identical num
 **Grouped by `d.id_user`, not by the rendered name.** Chris Hernandez and Chris Huang both
 display as "Chris H"; grouping by the string would merge two drivers into one row. A test
 creates both and asserts two rows.
+
+**The month is pinned to UTC.** `created_at` is a `timestamptz`, so `to_char` formats it
+in whatever timezone the session happens to be set to. A trip picked up at 23:30 on the
+last day of a month lands in the *next* month for a session eight hours ahead — the same
+data, a different report, depending on who ran it. A test runs the report under
+`Asia/Manila` and `America/Los_Angeles` and asserts the month does not move.
 
 **"More than 1 hour" is strict** — `> INTERVAL '1 hour'`. A trip of exactly sixty minutes
 does not count, and a test pins both sides of that boundary.
