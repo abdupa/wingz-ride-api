@@ -425,20 +425,45 @@ assertion.
 Requirement 3 asks for both sorts to be "as efficiently as possible, assuming the Ride
 table is very large". Those two sorts are not equally servable:
 
-- `pickup_time` has a B-tree index. Sorting by it is an index scan.
+- `pickup_time` has a composite index and is answered by an index-only scan.
 - **Distance cannot use an ordinary index.** It is computed from two separate columns, so
-  there is nothing to index. Every distance sort reads the whole table and sorts it.
+  there is nothing for a sorted structure to key on. Every distance sort reads the table.
 
-The production answer is to store a geography column and put a spatial index on it — and
-the brief explicitly forbids changing the Ride table, which is what rules it out. The
-next best thing, which the brief does allow, is a PostGIS **expression index**: a GiST
-index over `ST_MakePoint(pickup_longitude, pickup_latitude)`, giving index-accelerated
-nearest-neighbour ordering without adding a column. That is measured separately rather
-than assumed — an expression index has to match the query expression exactly, and a
-subtle mismatch is silently ignored while looking like it works.
+The production answer is a stored geography column with a spatial index, and the brief
+forbids changing the Ride table. The allowed alternative is a PostGIS **expression
+index** — a GiST index over the point those two columns describe, which adds no column.
 
-An annotation costs no extra query. Sorting by distance is still three queries, and a
-test holds it there.
+**This was built and measured rather than reasoned about, and then removed.** The
+measurements, on 200,000 rides, best of four runs each:
+
+| Query | Plan | Time |
+|---|---|---|
+| PostGIS, `ORDER BY distance` | **Index Scan** | **7 ms** |
+| haversine, `ORDER BY distance` | Seq Scan + sort | 347 ms |
+| haversine, `ORDER BY distance, id_ride` — **what ships** | Seq Scan + sort | 344 ms |
+| PostGIS, `ORDER BY distance, id_ride` | Seq Scan + sort | 377 ms |
+
+The index works, and it is worth roughly 48×. But look at the last two rows.
+
+**PostgreSQL's nearest-neighbour index ordering only applies when distance is the *only*
+sort key.** Add a second one and the plan collapses to a full scan and sort. A composite
+GiST index over the point *and* `id_ride`, using `btree_gist`, was tried too — it makes
+no difference.
+
+And every ordering here ends in the primary key, deliberately. Without it, rows that tie
+on the sort column can appear on two pages while another is never returned at all — a
+bug with its own test, because the counts still look correct when it happens.
+
+So the choice was not "faster or slower". It was:
+
+- keep the tiebreaker and adopt PostGIS → **slower than what we already had** (377 ms
+  against 344 ms), because geography distance costs more per row to compute; or
+- drop the tiebreaker → 48× faster, and reintroduce a pagination bug this project
+  found, fixed and tested.
+
+Neither is an improvement, so the extension was dropped and the branch deleted. The
+project runs on stock PostgreSQL, and this is the one requirement carrying a caveat
+rather than a tick.
 
 ### Page-number pagination, not cursor
 
@@ -763,7 +788,7 @@ Every discrete requirement in the brief, where it is implemented, and what prove
 | 3.8 | Sort by `pickup_time` | ✅ | `config/ordering.py` | `rides/tests/test_ordering.py` |
 | 3.9 | Sort by distance to a given GPS location | ✅ | `rides/distance.py` | `rides/tests/test_distance.py` — checked against an independent haversine |
 | 3.10 | Both sorts on the same endpoint | ✅ | `ordering_fields` | one `?ordering=` parameter serves both |
-| 3.11 | Both sorts as efficient as possible on a very large table | ⚠️ | index on `pickup_time`; distance computed in SQL | distance has no usable index — see *Honest limits* |
+| 3.11 | Both sorts as efficient as possible on a very large table | ⚠️ | `pickup_time` index-only scan; distance computed in SQL | a PostGIS index was built and measured — 48× faster, but only without the tiebreaker pagination correctness needs. See *Honest limits* |
 | 3.12 | Pagination still works when sorting is applied | ✅ | `StrictOrderingFilter` | 45 rides across 3 pages, both sorts, no duplicates |
 
 ### 4 — Performance
@@ -799,7 +824,7 @@ Every discrete requirement in the brief, where it is implemented, and what prove
 
 | # | Criterion | Status | Notes |
 |---|---|---|---|
-| E1 | Functionality — every requirement | ✅ | every row above; 130 tests |
+| E1 | Functionality — every requirement | ✅ | every row above; the full suite, run by CI on every push |
 | E2 | Code quality — modular, readable, maintainable | ✅ | two apps, thin serializers, optimisation isolated in `get_queryset` |
 | E3 | Error handling | ✅ | `config/exceptions.py` · `rides/tests/test_error_handling.py` — 17 edge cases probed, the one 500 fixed, no path returns 5xx |
 | E4 | Performance | ✅ | three queries, held constant across data sizes |
