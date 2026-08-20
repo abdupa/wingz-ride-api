@@ -399,7 +399,8 @@ absence of server errors is checked rather than assumed.
 ### Distance sorting runs in the database
 
 ```bash
-curl "http://127.0.0.1:8000/api/rides/?ordering=distance&lat=14.5826&lng=120.9787"
+curl "http://127.0.0.1:8000/api/rides/?ordering=distance&lat=14.5826&lng=120.9787" \
+     -H "Authorization: Token 9944b09..."
 ```
 
 The great-circle distance is computed in SQL as part of the SELECT, and the ordering and
@@ -433,7 +434,8 @@ assertion.
 Requirement 3 asks for both sorts to be "as efficiently as possible, assuming the Ride
 table is very large". Those two sorts are not equally servable:
 
-- `pickup_time` has a composite index and is answered by an index-only scan.
+- `pickup_time` has a composite index carrying the tiebreaker, so the ordering is read
+  straight off the index — no sort step.
 - **Distance cannot use an ordinary index.** It is computed from two separate columns, so
   there is nothing for a sorted structure to key on. Every distance sort reads the table.
 
