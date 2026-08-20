@@ -60,42 +60,50 @@ docker compose up -d
 Postgres 16, on `localhost:5432`, with a healthcheck. The database name, user and
 password are `wingz` — matching the `DATABASE_URL` in `.env.example`.
 
-**4. Migrate and create an admin**
+**4. Migrate and load demo data**
 
 ```bash
 python manage.py migrate
-python manage.py createsuperuser
-```
-
-`createsuperuser` prompts for email, first name, last name and phone number, and
-creates the account with `role='admin'`. There is no `is_superuser` field — see
-*Design decisions* below.
-
-**5. Seed some data (optional but recommended)**
-
-```bash
 python manage.py seed --clear
 ```
 
-Creates an admin, three drivers, eight riders and around 300 rides with four months of
-pickup and dropoff events. It is deterministic — the same `--seed` produces the same
-database every time, so a number quoted here can be reproduced rather than described.
+That gives you an admin to sign in with straight away:
+
+```
+admin@wingz.test / wingz-admin-password
+```
+
+The seed creates three drivers, eight riders and around 300 rides with four months of
+pickup and dropoff events. Pass `--seed` to control the random choices; timestamps are
+always relative to when you run it, so the months move with the calendar.
 
 It also plants three shapes that uniform random data would never produce, each one the
 thing a specific requirement needs to be provable: a ride with events either side of the
 24-hour boundary, five rides sharing one `pickup_time`, and **one ride with two pickup
 events** — without which the bonus report's inflation bug is invisible.
 
-Log in as `admin@wingz.test` / `wingz-admin-password`.
+> **`--clear` replaces every user.** If you would rather sign in as yourself, run
+> `python manage.py createsuperuser` *after* seeding, not before — otherwise the seed
+> deletes the account you just made. It prompts for email, first name, last name and
+> phone number, and creates it with `role='admin'`. There is no `is_superuser` field —
+> see *Design decisions* below.
 
-**6. Run**
+**5. Run the tests**
 
 ```bash
-python manage.py runserver
 pytest
 ```
 
-The API is at `http://127.0.0.1:8000/api/`.
+131 tests. The same suite CI runs on every push — see the badge at the top.
+
+**6. Start the server**
+
+```bash
+python manage.py runserver
+```
+
+The API is at `http://127.0.0.1:8000/api/`. This holds the terminal open, so use a second
+one for anything else.
 
 **7. Get a token**
 
@@ -104,7 +112,7 @@ Every endpoint requires an authenticated user with `role='admin'`.
 ```bash
 curl -X POST http://127.0.0.1:8000/api/auth/token/ \
      -H "Content-Type: application/json" \
-     -d '{"email": "you@example.com", "password": "your-password"}'
+     -d '{"email": "admin@wingz.test", "password": "wingz-admin-password"}'
 # {"token":"9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b"}
 ```
 
@@ -636,7 +644,10 @@ GROUP BY 1, d.id_user
 ORDER BY 1, 2;
 ```
 
-### Output against the seeded data
+### Example output against seeded data
+
+Seed timestamps are relative to when you run it, so your months and counts will differ.
+The shape is what matters:
 
 ```
 Month    Driver    Count of Trips > 1 hr
