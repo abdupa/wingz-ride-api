@@ -51,7 +51,13 @@ class Ride(models.Model):
         # return the same row on two pages and skip another entirely.
         ordering = ["id_ride"]
         indexes = [
-            models.Index(fields=["pickup_time"], name="ride_pickup_time_idx"),
+            # Composite, not pickup_time alone. Every ordering ends in the
+            # primary key (see StrictOrderingFilter), so the query is really
+            # ORDER BY pickup_time, id_ride. A single-column index leaves
+            # PostgreSQL to sort the ties on top of the index scan; carrying
+            # id_ride in the index makes the whole ordering readable straight
+            # from it.
+            models.Index(fields=["pickup_time", "id_ride"], name="ride_pickup_time_id_idx"),
             models.Index(fields=["status"], name="ride_status_idx"),
         ]
         # Coordinate bounds are physically true, so these can never reject
