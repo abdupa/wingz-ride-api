@@ -1,5 +1,7 @@
 # Wingz Ride API
 
+[![CI](https://github.com/abdupa/wingz-ride-api/actions/workflows/ci.yml/badge.svg)](https://github.com/abdupa/wingz-ride-api/actions/workflows/ci.yml)
+
 A RESTful API built with Django REST Framework that manages ride information —
 rides, the users who ride and drive them, and the events recorded against each ride.
 
@@ -824,3 +826,19 @@ pytest
 
 Tests assert what the database actually did, not what the code intends to do. Query
 counts are asserted, so a change that adds a query fails the suite.
+
+### Continuous integration
+
+Every push runs the suite on a clean machine against a real PostgreSQL, so the badge at
+the top of this page is evidence rather than a claim. The workflow does five things:
+
+| Step | Catches |
+|---|---|
+| `manage.py check` | configuration errors |
+| `makemigrations --check` | a model changed without its migration — a gap that only shows up on someone else's machine |
+| `migrate` | a migration that does not apply to an empty database |
+| `seed` then `trip_report` | the two commands this README tells a reviewer to run, actually running |
+| `pytest` | the suite |
+
+The database is plain `postgres:16`. This project needs no extensions — the distance
+maths is ordinary SQL — so CI runs the same thing `docker compose up` gives you.
