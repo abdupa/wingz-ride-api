@@ -472,8 +472,9 @@ So the choice was not "faster or slower". It was:
   found, fixed and tested.
 
 Neither is an improvement, so the extension was dropped and the branch deleted. The
-project runs on stock PostgreSQL, and this is the one requirement carrying a caveat
-rather than a tick.
+project runs on stock PostgreSQL, and this is the one caveat that is a measured limit
+rather than an interpretation — the other two ⚠️ rows in the traceability table are
+requirements met in full, with the reasoning recorded beside them.
 
 ### Page-number pagination, not cursor
 
